@@ -420,6 +420,10 @@ async function dialWithFailover(body: Json, req: Requirement): Promise<DialSucce
     if (upstream.ok && upstream.body !== null) return { ok: true, model: model.id, response: upstream, failures };
     const text = await upstream.text().catch(() => '');
     failures.push({ status: upstream.status, code: failureCodeOf(text, upstream.status), model: model.id });
+    // A 401 is not about the model: the trial's key is missing or refused, and every
+    // other free model would answer the same way on the same key. Stop the chain here
+    // instead of burning the trial's 60-call cap on refusals that cannot recover.
+    if (upstream.status === 401) break;
   }
   return { ok: false, failures };
 }
